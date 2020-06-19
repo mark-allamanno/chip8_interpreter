@@ -1,6 +1,5 @@
 import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.io.IOException
 import java.io.File
 import java.lang.Integer.toHexString
 import kotlin.system.exitProcess
@@ -18,19 +17,25 @@ import kotlin.system.exitProcess
     learning or review future me or someone else! Thanks for your time.
 */
 
-class Chip8 constructor(verboseLog: Boolean){
+class Chip8 constructor(filename: String, verboseLog: Boolean) {
 
-    var registers: IntArray = IntArray(0x10)        // The 16 CPU registers
-    var memory: IntArray = IntArray(0x1000)         // The 4k of onboard memory
-    var stack: IntArray = IntArray(0xC)             // The 12 levels of stack nesting
-    var delay: Int = 0x3C                               // The delay timer
-    var sound: Int = 0x3C                               // The sound timer
-    var opcode: Int = 0x0                               // The current opcode of the emulation
-    var registerI: Int = 0x0                            // The special I register
-    var pc: Int = 0x200                                 // The program counter
-    var sp: Int = 0x0                                   // The stack pointer
-    private var opcodeTable = OpcodeMap()               // The opcode table that we use for opcode execution
-    private val debug = verboseLog                      // The flag for the debug meu
+    var registers = IntArray(0x10)             // The 16 CPU registers
+    var memory = IntArray(0x1000)              // The 4k of onboard memory
+    var stack= IntArray(0xC)                   // The 12 levels of stack nesting
+    var gfx = Array(32) {IntArray(64)}    // The memory we are using for the graphical data
+    var delay = 0x3c                                // The delay timer
+    var sound = 0x3c                                // The sound timer
+    var opcode = 0x0                                // The current opcode of the emulation
+    var registerI = 0x0                             // The special I register
+    var pc = 0x200                                  // The program counter
+    var sp = 0x0                                    // The stack pointer
+    private var opcodeTable = OpcodeMap()           // The opcode table that we use for opcode execution
+    private val debug = verboseLog                  // The flag for the debug meu
+
+    init {
+        loadFonts()
+        loadRom(filename)
+    }
 
     private fun loadRom(filename: String) {
         try {
@@ -43,15 +48,11 @@ class Chip8 constructor(verboseLog: Boolean){
             rom.read(data)
             // Then reads this byte array into our memory array for use in the emulator
             for (i in data.indices) memory[0x200 + i] = data[i].toInt()
-        } catch (e: FileNotFoundException) {
-            // Handles the situation where the user has specified a file that doesn't exist and helps to guide them
+        }
+        // Handles the situation where the user has specified a file that doesn't exist and helps to guide them
+        catch (e: FileNotFoundException) {
             println("File not found! Did you type the right name")
             println("Put the rom into the same directory as the executable and then specify the ROM name")
-            exitProcess(1)
-        } catch (e: IOException) {
-            // Handles the situation where reading the file does wrong and prints the stack trace
-            println("Error occurred while reading the ROM")
-            e.printStackTrace(System.out)
             exitProcess(1)
         }
     }
@@ -102,34 +103,17 @@ class Chip8 constructor(verboseLog: Boolean){
         try {
             val function = opcodeTable.functionFromString(opcode)!!
             function.execute(this)
-            Thread.sleep(40)
         }
         // Catch the exception where there is no corresponding opcode for the instruction given
         catch (e: NullPointerException) {
             print("There was an undefined opcode: ${toHexString(opcode)}")
             exitProcess(1)
         }
-        // Catch the exception were the thread is interrupted while attempting to sleep
-        catch (e: InterruptedException) {
-            print("Thread sleep was interrupted")
-            exitProcess(1)
-        }
     }
 
-    fun emulate(gameRom: String) {
-        // Sets up the Chip8 emulation by loading the font set and roms into memory
-        loadFonts()
-        loadRom(gameRom)
-        // Continuously execute opcodes and print to the debug menu if the user wishes
-        while (true) {
-            executeOpcode()
-            if(debug) debugPrint()
-        }
+    fun emulateCycle() {
+        // Executes one cycle of the Chip8 CPU
+        executeOpcode()
+        if(debug) debugPrint()
     }
-}
-
-fun main() {
-    // Create a new Chip8 object and start the emulation
-    val chip8 = Chip8(true)
-    chip8.emulate("test_opcode.ch8")
 }
