@@ -1,7 +1,7 @@
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.File
-import java.lang.Integer.toHexString
+import java.io.IOException
 import kotlin.system.exitProcess
 
 /*
@@ -16,25 +16,24 @@ import kotlin.system.exitProcess
     types I elected to make the project as organized, straightforward, and well documented as possible. Enjoy either for
     learning or review future me or someone else! Thanks for your time.
 */
-
 class Chip8 constructor(filename: String, verboseLog: Boolean) {
 
-    var registers = IntArray(0x10)             // The 16 CPU registers
-    var memory = IntArray(0x1000)              // The 4k of onboard memory
-    var stack= IntArray(0xC)                   // The 12 levels of stack nesting
-    var gfx = Array(32) {IntArray(64)}    // The memory we are using for the graphical data
-    var delay = 0x3c                                // The delay timer
-    var sound = 0x3c                                // The sound timer
-    var opcode = 0x0                                // The current opcode of the emulation
-    var registerI = 0x0                             // The special I register
-    var pc = 0x200                                  // The program counter
-    var sp = 0x0                                    // The stack pointer
-    private var opcodeTable = OpcodeMap()           // The opcode table that we use for opcode execution
-    private val debug = verboseLog                  // The flag for the debug meu
+    var registers = IntArray(0x10)                 // The 16 CPU registers
+    var memory = IntArray(0x1000)                  // The 4k of onboard memory
+    var stack= IntArray(0xC)                       // The 12 levels of stack nesting
+    var gfx = Array(32) {IntArray(64)}        // The memory we are using for the graphical data
+    var delay = 0x3c                                    // The delay timer
+    var sound = 0x3c                                    // The sound timer
+    var opcode = 0x0                                    // The current opcode of the emulation
+    var registerI = 0x0                                 // The special I register
+    var pc = 0x200                                      // The program counter
+    var sp = 0x0                                        // The stack pointer
+    private var opcodeTable = OpcodeMap(this)   // The opcode table that we use for opcode execution
+    private val debug = verboseLog                      // The flag for the debug meu
 
     init {
-        loadFonts()
-        loadRom(filename)
+        loadFonts()             // Load the Chip8 font set into memory
+        loadRom(filename)       // Load the specified ROM into memory
     }
 
     private fun loadRom(filename: String) {
@@ -51,8 +50,17 @@ class Chip8 constructor(filename: String, verboseLog: Boolean) {
         }
         // Handles the situation where the user has specified a file that doesn't exist and helps to guide them
         catch (e: FileNotFoundException) {
-            println("File not found! Did you type the right name")
+            println("File not found! Did you type the right name?")
             println("Put the rom into the same directory as the executable and then specify the ROM name")
+            exitProcess(1)
+        }
+        catch (e: IOException) {
+            println("There was an error when loading the specified ROM file into memory. Try again")
+            exitProcess(1)
+        }
+        catch (e: IndexOutOfBoundsException) {
+            println("ROM File is too big for the Chip8, did you load the incorrect file?")
+            println("Make sure your ROM file is less than ___ kilobytes")
             exitProcess(1)
         }
     }
@@ -85,7 +93,7 @@ class Chip8 constructor(filename: String, verboseLog: Boolean) {
         // Print the current opcode and program counter position
         println(String.format("Opcode: %x", opcode))
         println(String.format("Program Counter: %x", pc))
-        // Iterate over all of the registers and print their values in a line for help debuging
+        // Iterate over all of the registers and print their values in a line for help debugging
         print("Registers -> ")
         for (i in registers.indices) {
             print(String.format("V%x: ", i))
@@ -96,24 +104,12 @@ class Chip8 constructor(filename: String, verboseLog: Boolean) {
         print("\n\n")
     }
 
-    private fun executeOpcode() {
+    fun emulateCycle() {
         // Merge the two bytes at the program counter and the program counter + 1 to make the current opcode
         opcode = ((memory[pc] shl 8) and 0xFF00) or (memory[pc + 1] and 0xFF)
-        // Attempt to execute the current opcode and sleep the thread after execution
-        try {
-            val function = opcodeTable.functionFromString(opcode)!!
-            function.execute(this)
-        }
-        // Catch the exception where there is no corresponding opcode for the instruction given
-        catch (e: NullPointerException) {
-            print("There was an undefined opcode: ${toHexString(opcode)}")
-            exitProcess(1)
-        }
-    }
-
-    fun emulateCycle() {
-        // Executes one cycle of the Chip8 CPU
-        executeOpcode()
+        // Use the opcode table to execute the current opcode
+        opcodeTable.executeOpcode(opcode)
+        // Print the debug menu to the console if the user wishes
         if(debug) debugPrint()
     }
 }

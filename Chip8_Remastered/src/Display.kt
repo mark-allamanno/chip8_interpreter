@@ -1,32 +1,32 @@
+import java.awt.Color
+import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.event.*
-import java.awt.image.BufferedImage
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.Timer
 
-class Display constructor(width: Int, height: Int, chip8: Chip8) : JPanel(),
+class Display constructor(upscale: Int, chip8: Chip8) : JPanel(),
     ActionListener, KeyListener {
 
-    private val frame = JFrame("Chip8 Emulator")
+    private val frame = JFrame("Chip8 Interpreter")
     private var frameNumber = 0
-    private val timer = Timer(10, this)
+    private val timer = Timer(20, this)
     private val processor = chip8
+    private val upscale = upscale
 
     init {
-        // Initializes all of the important JFrame attributes
-        frame.setLocation(300, 200)
-        frame.setSize(width, height)
-        frame.contentPane = this
-        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        frame.isVisible = true
-        // Initializes all of the important JPanel attributes
-        this.setSize(width, height)
-        this.isVisible = true
-        this.isFocusable = true
+        // Initializes the size of the JPanel and add a key listener
+        this.preferredSize = Dimension(64 * upscale,32 * upscale)
         addKeyListener(this)
-        // Starts the timer for the animation panel
-        timer.start()
+        // Initializes the close operation and location of the window
+        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        frame.setLocation(200, 100)
+        // Put the JPanel inside of the JFrame and pack them together
+        frame.contentPane = this
+        frame.pack()
+        // Finally make it visible
+        frame.isVisible = true
     }
 
     // Override methods for the keyboard listener
@@ -34,20 +34,22 @@ class Display constructor(width: Int, height: Int, chip8: Chip8) : JPanel(),
     override fun keyTyped(e: KeyEvent) {}
     override fun keyReleased(e: KeyEvent) {}
 
+    // Methods to start and end the emulation of the Chip8 CPU
+    fun startEmulation() {timer.start()}
+    fun endEmulation() {timer.stop()}
+
     override fun paintComponent(g: Graphics) {
         // Firstly call to the super method
         super.paintComponent(g)
-        // Then we create a new buffered image whose dimensions are that of the panel
-        val render = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         // And then we change the pixel values to reflect the sprite data in memory
         for (i in 0 until 64) {
             for (j in 0 until 32) {
-                val color = if (processor.gfx[j][i] == 1) 255 else 0
-                render.setRGB(i, j, color)
+                // Sets the color of the current pixel to be drawn
+                if (processor.gfx[j][i] == 1) g.color = Color.WHITE else g.color = Color.BLACK
+                // Draws the pixel at its corresponding location onscreen
+                g.fillRect(i * upscale, j * upscale, upscale, upscale)
             }
         }
-        // Finally we draw the image to the panel as our current frame
-        g.drawImage(render, 0, 0, null)
     }
 
     override fun paint(g: Graphics) {
@@ -66,6 +68,7 @@ class Display constructor(width: Int, height: Int, chip8: Chip8) : JPanel(),
 
 fun main() {
     // Create a new Chip8 object and start the emulation
-    val chip8 = Chip8("Particle Demo.ch8", true)
-    val screen = Display(1024, 512, chip8)
+    val chip8 = Chip8("roms/test_opcode.ch8", true)
+    val screen = Display(20, chip8)
+    screen.startEmulation()
 }
