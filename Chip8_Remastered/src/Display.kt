@@ -68,7 +68,7 @@ class Display constructor(upscale: Int, chip8: Chip8) : JPanel(),
 
 fun main() {
     // Create a new Chip8 object and start the emulation
-    val chip8 = Chip8("roms/test_opcode.ch8", true)
+    val chip8 = Chip8("roms/test_opcode.ch8", false)
     val screen = Display(20, chip8)
     screen.startEmulation()
 }

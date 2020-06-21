@@ -1,6 +1,6 @@
 import java.lang.Integer.toHexString
 import java.util.regex.Pattern.matches
-import kotlin.math.pow
+import java.lang.Character.getNumericValue
 
 /*
     An interface for all opcodes to implement so they can be stored as a hash map in our main Chip8 emulation to
@@ -64,7 +64,7 @@ internal class JumpSubroutine : Opcode {
 internal class SkipIfEqualValue: Opcode {
     // If the opcode is in the form 3XNN then we need to check if VX and NN are equal
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         val value = instance.opcode and 0x00FF
         instance.pc += if (instance.registers[index] == value) 4 else 2
     }
@@ -73,7 +73,7 @@ internal class SkipIfEqualValue: Opcode {
 internal class SkipIfNotEqualValue: Opcode {
     // If the opcode is in the form 4XNN then we need to check if VX and NN are not equal
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         val value = instance.opcode and 0x00FF
         instance.pc += if (instance.registers[index] != value) 4 else 2
     }
@@ -82,8 +82,8 @@ internal class SkipIfNotEqualValue: Opcode {
 internal class SkipIfEqualRegister: Opcode {
     // If the opcode is in the form 5XY0 then we need to check if the registers VX and VY are equal
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.pc += if (instance.registers[registerX] == instance.registers[registerY]) 4 else 2
     }
 }
@@ -101,8 +101,9 @@ internal class IncrementRegisterValue: Opcode {
     // If the opcode is in the form ____ then we need to increment the value in VX by the value NN
     override fun execute(instance: Chip8) {
         val index = (instance.opcode and 0x0F00) ushr 8
-        instance.registers[index] += instance.opcode and 0xFF
-        if (255 < instance.registers[index]) instance.registers[index] -= 255
+        instance.registers[index] += instance.opcode and 0x00FF
+        if (255 < instance.registers[index])
+            instance.registers[index] = instance.registers[index] and 0xFF
         instance.pc += 2
     }
 }
@@ -110,28 +111,28 @@ internal class IncrementRegisterValue: Opcode {
 internal class SetRegistersEqual: Opcode {
     // If the opcode is in the form 8XY0 then we need to set VX to VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] = instance.registers[registerY]
         instance.pc += 2
     }
 }
 
 internal class BitwiseAndRegisters: Opcode {
-    // If the opcode is in the form 8XY1 then we set VX equal to VX and VY
+    // If the opcode is in the form 8XY1 then we set VX equal to VX or VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] = instance.registers[registerX] and instance.registers[registerY]
         instance.pc += 2
     }
 }
 
 internal class BitwiseOrRegisters: Opcode {
-    // If the opcode is in the form 8XY2 then we set VX equal to VX or VY
+    // If the opcode is in the form 8XY2 then we set VX equal to VX and VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] = instance.registers[registerX] or instance.registers[registerY]
         instance.pc += 2
     }
@@ -140,8 +141,8 @@ internal class BitwiseOrRegisters: Opcode {
 internal class BitwiseXorRegisters: Opcode {
     // If the opcode is in the form 8XY3 then we set VX equal to VX xor VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] = instance.registers[registerX] xor instance.registers[registerY]
         instance.pc += 2
     }
@@ -150,14 +151,16 @@ internal class BitwiseXorRegisters: Opcode {
 internal class IncrementRegister: Opcode {
     // If the opcode is in the form 8XY3 then we set VX equal to VX xor VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] += instance.registers[registerY]
         // Check if there is an integer overflow and set flags accordingly
-        if (255 < instance.registers[registerX] + instance.registers[registerY]) {
-            instance.registers[registerX] = instance.registers[registerX] and 0xff
+        if (255 < instance.registers[registerX]) {
+            instance.registers[registerX] = instance.registers[registerX] and 0x00FF
             instance.registers[0xF] = 1
         }
+        // If an overflow does not occur then we need to set VF to 0
+        else instance.registers[0xF] = 0
         instance.pc += 2
     }
 }
@@ -165,14 +168,33 @@ internal class IncrementRegister: Opcode {
 internal class DecrementRegister: Opcode {
     // If the opcode is in the form 8XY3 then we set VX equal to VX xor VY
     override fun execute(instance: Chip8) {
-        val registerX = instance.opcode and 0x0F00 ushr 8
-        val registerY = instance.opcode and 0x00F0 ushr 4
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[registerX] -= instance.registers[registerY]
         // Check to see if there is an integer underflow and set the flags accordingly
-        if (instance.registers[registerX] < instance.registers[registerY]) {
+        if (instance.registers[registerX] < 0) {
             instance.registers[registerX] = instance.registers[registerX] and 0xFF
             instance.registers[0xF] = 0
         }
+        // Need to set VF to 1 if an underflow occurs
+        else instance.registers[0xF] = 1
+        instance.pc += 2
+    }
+}
+
+internal class DecrementRegisterInverse: Opcode {
+    // If the opcode is in the form 8XY3 then we set VX equal to VX xor VY
+    override fun execute(instance: Chip8) {
+        val registerX = (instance.opcode and 0x0F00) ushr 8
+        val registerY = (instance.opcode and 0x00F0) ushr 4
+        instance.registers[registerX] = instance.registers[registerY] - instance.registers[registerX]
+        // Check to see if there is an integer underflow and set the flags accordingly
+        if (instance.registers[registerX] < 0) {
+            instance.registers[registerX] = instance.registers[registerX] and 0xFF
+            instance.registers[0xF] = 0
+        }
+        // Need to set VF to 1 if an underflow occurs
+        else instance.registers[0xF] = 1
         instance.pc += 2
     }
 }
@@ -181,8 +203,8 @@ internal class BitwiseRightShift: Opcode {
     // If the opcode is in the form ____ then we need to shift VY right by one bit and store that bit into VF
     override fun execute(instance: Chip8) {
         val registerX = (instance.opcode and 0x0F00) ushr 8
+        instance.registers[0xF] = instance.registers[registerX] and 0x01
         instance.registers[registerX] = instance.registers[registerX] ushr 1
-        instance.registers[0xF] = instance.registers[registerX] and 0x0001
         instance.pc += 2
     }
 }
@@ -191,8 +213,8 @@ internal class BitwiseLeftShift: Opcode {
     // If the opcode is in the form ____ then we need to shift VY right by one bit and store that but into VF
     override fun execute(instance: Chip8) {
         val registerX = (instance.opcode and 0x0F00) ushr 8
+        instance.registers[0xF] = (instance.registers[registerX] and 0x80) ushr 7
         instance.registers[registerX] = instance.registers[registerX] shl 1
-        instance.registers[0xF] = (instance.registers[registerX] and 0x8000) ushr 7
         instance.pc += 2
     }
 }
@@ -224,7 +246,7 @@ internal class JumpToAddressSum: Opcode {
 internal class RandomNumMask: Opcode {
     // If the opcode is in the form CXNN then we store a random number between 00-FF masked with NN into VX
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         val random = (0..255).random()
         val mask = instance.opcode and 0x00FF
         instance.registers[index] = random and mask
@@ -246,7 +268,7 @@ internal class DrawSprite: Opcode {
                 // Gets the current pixel data from memory
                 val pixel = instance.memory[instance.registerI + row]
                 val bit = pixel and (0b10000000 ushr col)
-                // Low kwy unsure as to what the fuck this does
+                // Low key unsure as to what the fuck this does
                 if (bit != 0) {
                     // We need to account for the wrap around of pixels
                     if (registerX + col > 64)
@@ -269,7 +291,7 @@ internal class DrawSprite: Opcode {
 internal class StoreDelayToRegister: Opcode {
     // If the opcode is in the form ____ then we need to save the value of the delay register to VX
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         instance.registers[index] = instance.delay
         instance.pc += 2
     }
@@ -278,7 +300,7 @@ internal class StoreDelayToRegister: Opcode {
 internal class SetDelayToRegister: Opcode {
     // If the opcode is in the form ____ then we need to set the delay register to VX
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         instance.delay = instance.registers[index]
         instance.pc += 2
     }
@@ -287,7 +309,7 @@ internal class SetDelayToRegister: Opcode {
 internal class SetSoundToRegister: Opcode {
     // If the opcode is in the form ____ then we need to set the sound timer to the value in VX
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         instance.sound = instance.registers[index]
         instance.pc += 2
     }
@@ -296,7 +318,7 @@ internal class SetSoundToRegister: Opcode {
 internal class AddRegisterToSpecial: Opcode {
     // If the opcode is in the form ____ then we need to increment the I register by VX
     override fun execute(instance: Chip8) {
-        val index = instance.opcode and 0x0F00 ushr 8
+        val index = (instance.opcode and 0x0F00) ushr 8
         instance.registerI += instance.registers[index]
         instance.pc += 2
     }
@@ -316,9 +338,17 @@ internal class WaitForKeyPress: Opcode {
 internal class BinaryCodedDecimal: Opcode {
     // Draw Pixel Opcode
     override fun execute(instance: Chip8) {
-        val regIndex = instance.opcode and 0x0F00 ushr 8
-        for (i in 0..2)
-            instance.memory[instance.registerI + i] = instance.registers[regIndex] % 10.0.pow(i.toDouble()).toInt()
+        // Get the register and the string representing the number to store to memory
+        val regIndex = (instance.opcode and 0x0F00) ushr 8
+        val numString = instance.registers[regIndex].toString()
+        /* We iterate backwards over the string to  fill it as I+2, I+1, I with the 1's, 10's and 100's places
+           respectively. We do this because if the string is too short ie less than 3 digits we need to add 0's
+           in either the 100's or 10's places to extend the number according to spec */
+        for (i in numString.indices.reversed())
+            instance.memory[instance.registerI + i] = getNumericValue(numString[i])
+        // Now if the string was too short we fill in the gaps here with 0's going forwards
+        for (i in 0 until 3-numString.length)
+            instance.memory[instance.registerI + i] = 0
         instance.pc += 2
     }
 }
@@ -328,7 +358,7 @@ internal class RegisterDump: Opcode {
     override fun execute(instance: Chip8) {
         val regIndex = instance.opcode and 0x0F00 ushr 8
         for (i in 0..regIndex)
-            instance.memory[instance.registerI + i] = instance.registers[i] and 0xff
+            instance.memory[instance.registerI + i] = instance.registers[i] and 0xFF
         instance.registerI += regIndex + 1
         instance.pc += 2
     }
@@ -339,7 +369,7 @@ internal class RegisterLoad: Opcode {
     override fun execute(instance: Chip8) {
         val regIndex = instance.opcode and 0x0F00 ushr 8
         for (i in 0..regIndex)
-            instance.registers[i] = instance.memory[instance.registerI + i] and 0xff
+            instance.registers[i] = instance.memory[instance.registerI + i] and 0xFF
         instance.registerI += regIndex + 1
         instance.pc += 2
     }
@@ -375,6 +405,7 @@ class OpcodeMap constructor(instance: Chip8): HashMap<String, Opcode>() {
         this["8..4"] = IncrementRegister()
         this["8..5"] = DecrementRegister()
         this["8..6"] = BitwiseRightShift()
+        this["8..7"] = DecrementRegisterInverse()
         this["8..e"] = BitwiseLeftShift()
         this["9..0"] = SkipIfNotEqualRegister()
         this["a..."] = SaveAddressToI()
