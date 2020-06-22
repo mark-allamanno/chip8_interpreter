@@ -29,6 +29,7 @@ internal class UndefinedOpcode(opcode: String): Exception() {
 internal class ClearScreen: Opcode {
     // Clears the screen of any pixel data held before the next request
     override fun execute(instance: Chip8) {
+        // Iterates over the graphics array and sets all pixel data to 0
         for (i in 0 until 64)
             for (j in 0 until 32)
                 instance.gfx[j][i] = 0
@@ -103,7 +104,7 @@ internal class IncrementRegisterValue: Opcode {
         val index = (instance.opcode and 0x0F00) ushr 8
         instance.registers[index] += instance.opcode and 0x00FF
         if (255 < instance.registers[index])
-            instance.registers[index] = instance.registers[index] and 0xFF
+            instance.registers[index] = instance.registers[index] and 0x00FF
         instance.pc += 2
     }
 }
@@ -173,7 +174,7 @@ internal class DecrementRegister: Opcode {
         instance.registers[registerX] -= instance.registers[registerY]
         // Check to see if there is an integer underflow and set the flags accordingly
         if (instance.registers[registerX] < 0) {
-            instance.registers[registerX] = instance.registers[registerX] and 0xFF
+            instance.registers[registerX] = instance.registers[registerX] and 0x00FF
             instance.registers[0xF] = 0
         }
         // Need to set VF to 1 if an underflow occurs
@@ -203,8 +204,9 @@ internal class BitwiseRightShift: Opcode {
     // If the opcode is in the form ____ then we need to shift VY right by one bit and store that bit into VF
     override fun execute(instance: Chip8) {
         val registerX = (instance.opcode and 0x0F00) ushr 8
-        instance.registers[0xF] = instance.registers[registerX] and 0x01
-        instance.registers[registerX] = instance.registers[registerX] ushr 1
+        val registerY = (instance.opcode and 0x00F0) ushr 4
+        instance.registers[0xF] = instance.registers[registerY] and 0x01
+        instance.registers[registerX] = instance.registers[registerY] ushr 1
         instance.pc += 2
     }
 }
@@ -213,8 +215,9 @@ internal class BitwiseLeftShift: Opcode {
     // If the opcode is in the form ____ then we need to shift VY right by one bit and store that but into VF
     override fun execute(instance: Chip8) {
         val registerX = (instance.opcode and 0x0F00) ushr 8
-        instance.registers[0xF] = (instance.registers[registerX] and 0x80) ushr 7
-        instance.registers[registerX] = instance.registers[registerX] shl 1
+        val registerY = (instance.opcode and 0x00F0) ushr 4
+        instance.registers[0xF] = (instance.registers[registerY] and 0x80) ushr 7
+        instance.registers[registerX] = instance.registers[registerY] shl 1
         instance.pc += 2
     }
 }
@@ -324,14 +327,15 @@ internal class AddRegisterToSpecial: Opcode {
     }
 }
 
-internal class WaitForKeyPress: Opcode {
+internal class WaitForKeyPress constructor(display: Display): Opcode {
+
+    private val reader = display
     // Draw Pixel Opcode
     override fun execute(instance: Chip8) {
-        // Reads the next key press the user inputs and encodes it with ASCII
-        val input = System.`in`.read()
-        // Then gets the index of VX and stores the ascii encoding of the character there
         val index = (instance.opcode and 0x0F00) ushr 8
-        instance.registers[index] = input
+        while (reader.currentKey == null) {
+            instance.registers[index] = reader.currentKey?.toInt() ?: 0
+        }
     }
 }
 
@@ -356,7 +360,7 @@ internal class BinaryCodedDecimal: Opcode {
 internal class RegisterDump: Opcode {
     // If the opcode is in the form ____ then we need to dump the contents of V0-VX into memory
     override fun execute(instance: Chip8) {
-        val regIndex = instance.opcode and 0x0F00 ushr 8
+        val regIndex = (instance.opcode and 0x0F00) ushr 8
         for (i in 0..regIndex)
             instance.memory[instance.registerI + i] = instance.registers[i] and 0xFF
         instance.registerI += regIndex + 1
@@ -367,7 +371,7 @@ internal class RegisterDump: Opcode {
 internal class RegisterLoad: Opcode {
     // If the opcode is in the form ____ then we need to load values from memory into V0-VX
     override fun execute(instance: Chip8) {
-        val regIndex = instance.opcode and 0x0F00 ushr 8
+        val regIndex = (instance.opcode and 0x0F00) ushr 8
         for (i in 0..regIndex)
             instance.registers[i] = instance.memory[instance.registerI + i] and 0xFF
         instance.registerI += regIndex + 1
@@ -375,13 +379,41 @@ internal class RegisterLoad: Opcode {
     }
 }
 
+internal class SkipIfMatchKey constructor(display: Display): Opcode {
+
+    private val reader = display
+    // If the opcode is in the form ____ then we need to load values from memory into V0-VX
+    override fun execute(instance: Chip8) {
+        val regIndex = (instance.opcode and 0x0F00) ushr 8
+        instance.pc += if(instance.registers[regIndex] == reader.currentKey?.toInt() ?: 0) 4 else 2
+    }
+}
+
+internal class SkipIfNotMatchKey constructor(display: Display): Opcode {
+
+    private val reader = display
+    // If the opcode is in the form ____ then we need to load values from memory into V0-VX
+    override fun execute(instance: Chip8) {
+        val regIndex = (instance.opcode and 0x0F00) ushr 8
+        instance.pc += if(instance.registers[regIndex] != reader.currentKey?.toInt() ?: 0) 4 else 2
+    }
+}
+
+internal class SpriteAddress: Opcode {
+
+    override fun execute(instance: Chip8) {
+        val index = (instance.opcode and 0x0F00) ushr 8
+        instance.registerI = instance.registers[index] * 5
+        instance.pc += 2
+    }
+}
 /*
     Now that we have implemented all of the opcodes we need to organize them into a hashmap
     to be abe to cleanly access them from the Chip8 class itself. This is best abstracted by
     creating a class whose purpose is to collect all of these classes and organize them into such
     a hashmap.
 */
-class OpcodeMap constructor(instance: Chip8): HashMap<String, Opcode>() {
+class OpcodeMap constructor(instance: Chip8, display: Display): HashMap<String, Opcode>() {
 
     // The array of regex compliant strings to match against opcodes and the current Chip8 instance
     private val regexKeys: Array<String>
@@ -412,11 +444,14 @@ class OpcodeMap constructor(instance: Chip8): HashMap<String, Opcode>() {
         this["b..."] = JumpToAddressSum()
         this["c..."] = RandomNumMask()
         this["d..."] = DrawSprite()
+        this["e.9e"] = SkipIfMatchKey(display)
+        this["e.a1"] = SkipIfNotMatchKey(display)
         this["f.07"] = StoreDelayToRegister()
-        this["f.0a"] = WaitForKeyPress()
+        this["f.0a"] = WaitForKeyPress(display)
         this["f.15"] = SetDelayToRegister()
         this["f.18"] = SetSoundToRegister()
         this["f.1e"] = AddRegisterToSpecial()
+        this["f.29"] = SpriteAddress()
         this["f.33"] = BinaryCodedDecimal()
         this["f.55"] = RegisterDump()
         this["f.65"] = RegisterLoad()

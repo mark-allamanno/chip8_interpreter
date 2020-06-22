@@ -1,23 +1,28 @@
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
-import java.awt.event.*
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import java.awt.event.KeyEvent
+import java.awt.event.KeyListener
+import java.security.Key
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.Timer
 
-class Display constructor(upscale: Int, chip8: Chip8) : JPanel(),
-    ActionListener, KeyListener {
+
+class Display constructor(upscale: Int, chip8: Chip8): JPanel(), KeyListener {
 
     private val frame = JFrame("Chip8 Interpreter")
     private var frameNumber = 0
-    private val timer = Timer(20, this)
     private val processor = chip8
     private val upscale = upscale
+    internal var currentKey: Char? = null
 
     init {
         // Initializes the size of the JPanel and add a key listener
         this.preferredSize = Dimension(64 * upscale,32 * upscale)
+        this.isFocusable = true
         addKeyListener(this)
         // Initializes the close operation and location of the window
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
@@ -29,14 +34,10 @@ class Display constructor(upscale: Int, chip8: Chip8) : JPanel(),
         frame.isVisible = true
     }
 
-    // Override methods for the keyboard listener
-    override fun keyPressed(e: KeyEvent) {}
-    override fun keyTyped(e: KeyEvent) {}
-    override fun keyReleased(e: KeyEvent) {}
-
-    // Methods to start and end the emulation of the Chip8 CPU
-    fun startEmulation() {timer.start()}
-    fun endEmulation() {timer.stop()}
+    // When a key is pressed we store its character into the class variable and if its released reset it
+    override fun keyPressed(e: KeyEvent) { currentKey = e.keyChar }
+    override fun keyReleased(e: KeyEvent) { currentKey = null }
+    override fun keyTyped(e: KeyEvent) { currentKey = e.keyChar }
 
     override fun paintComponent(g: Graphics) {
         // Firstly call to the super method
@@ -57,18 +58,4 @@ class Display constructor(upscale: Int, chip8: Chip8) : JPanel(),
         paintComponent(g)
         frameNumber++
     }
-
-    override fun actionPerformed(e: ActionEvent) {
-        // On each repaint of the frame we first need to run a CPU cycle
-        processor.emulateCycle()
-        // Then we need to draw the corresponding frame for the cycle
-        repaint()
-    }
-}
-
-fun main() {
-    // Create a new Chip8 object and start the emulation
-    val chip8 = Chip8("roms/test_opcode.ch8", false)
-    val screen = Display(20, chip8)
-    screen.startEmulation()
 }

@@ -1,7 +1,10 @@
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.File
 import java.io.IOException
+import javax.swing.Timer
 import kotlin.system.exitProcess
 
 /*
@@ -16,24 +19,30 @@ import kotlin.system.exitProcess
     types I elected to make the project as organized, straightforward, and well documented as possible. Enjoy either for
     learning or review future me or someone else! Thanks for your time.
 */
-class Chip8 constructor(filename: String, verboseLog: Boolean) {
+class Chip8 constructor(verboseLog: Boolean): ActionListener {
 
-    var registers = IntArray(0x10)                 // The 16 CPU registers
-    var memory = IntArray(0x1000)                  // The 4k of onboard memory
-    var stack= IntArray(0xC)                       // The 12 levels of stack nesting
-    var gfx = Array(32) {IntArray(64)}        // The memory we are using for the graphical data
-    var delay = 0x3c                                    // The delay timer
-    var sound = 0x3c                                    // The sound timer
-    var opcode = 0x0                                    // The current opcode of the emulation
-    var registerI = 0x0                                 // The special I register
-    var pc = 0x200                                      // The program counter
-    var sp = 0x0                                        // The stack pointer
-    private var opcodeTable = OpcodeMap(this)   // The opcode table that we use for opcode execution
-    private val debug = verboseLog                      // The flag for the debug meu
+    internal var registers = IntArray(0x10)                             // The 16 CPU registers
+    internal var memory = IntArray(0x1000)                              // The 4k of onboard memory
+    internal var stack = IntArray(0xC)                                  // The 12 levels of stack nesting
+    internal var gfx = Array(32) {IntArray(64)}                    // The memory we are using for the graphical data
+    internal var delay = 0x3c                                                // The delay timer
+    internal var sound = 0x3c                                                // The sound timer
+    internal var opcode = 0x0                                                // The current opcode of the emulation
+    internal var registerI = 0x0                                             // The special I register
+    internal var pc = 0x200                                                  // The program counter
+    internal var sp = 0x0                                                    // The stack pointer
+    private val display = Display(20, this)                     // The display for the chip 8 instance
+    private val timer = Timer(10, this)                         // A timer to regulate the CPU cycle speed
+    private val opcodeTable = OpcodeMap(this, display)               // The opcode table that we use for opcode execution
+    private val debug = verboseLog                                           // The flag for the debug meu
 
     init {
         loadFonts()             // Load the Chip8 font set into memory
+    }
+
+    fun emulate(filename: String) {
         loadRom(filename)       // Load the specified ROM into memory
+        timer.start()           // Starts the timer for the display
     }
 
     private fun loadRom(filename: String) {
@@ -54,10 +63,12 @@ class Chip8 constructor(filename: String, verboseLog: Boolean) {
             println("Put the rom into the same directory as the executable and then specify the ROM name")
             exitProcess(1)
         }
+        // Handles the situation where the api fails to read the specified file into memory
         catch (e: IOException) {
             println("There was an error when loading the specified ROM file into memory. Try again")
             exitProcess(1)
         }
+        // Handles the situation where the user specifies a file tha is too large for the interpreter
         catch (e: IndexOutOfBoundsException) {
             println("ROM File is too big for the Chip8, did you load the incorrect file?")
             println("Make sure your ROM file is less than ___ kilobytes")
@@ -104,12 +115,22 @@ class Chip8 constructor(filename: String, verboseLog: Boolean) {
         print("\n\n")
     }
 
-    fun emulateCycle() {
+    override fun actionPerformed(e: ActionEvent?) {
         // Merge the two bytes at the program counter and the program counter + 1 to make the current opcode
         opcode = ((memory[pc] shl 8) and 0xFF00) or (memory[pc + 1] and 0xFF)
         // Use the opcode table to execute the current opcode
         opcodeTable.executeOpcode(opcode)
+        // Render the current frame of the emulation after running a CPU cycle
+        display.repaint()
+        print(display.currentKey)
         // Print the debug menu to the console if the user wishes
         if(debug) debugPrint()
     }
 }
+
+fun main() {
+    // Create a new Chip8 object and start the emulation
+    val chip8 = Chip8(true)
+    chip8.emulate("roms/maze.ch8")
+}
+
