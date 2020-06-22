@@ -1,6 +1,7 @@
 import java.lang.Integer.toHexString
 import java.util.regex.Pattern.matches
 import java.lang.Character.getNumericValue
+import java.lang.Integer.toBinaryString
 
 /*
     An interface for all opcodes to implement so they can be stored as a hash map in our main Chip8 emulation to
@@ -217,7 +218,7 @@ internal class BitwiseLeftShift: Opcode {
         val registerX = (instance.opcode and 0x0F00) ushr 8
         val registerY = (instance.opcode and 0x00F0) ushr 4
         instance.registers[0xF] = (instance.registers[registerY] and 0x80) ushr 7
-        instance.registers[registerX] = instance.registers[registerY] shl 1
+        instance.registers[registerX] = (instance.registers[registerY] shl 1) and 0xFF
         instance.pc += 2
     }
 }

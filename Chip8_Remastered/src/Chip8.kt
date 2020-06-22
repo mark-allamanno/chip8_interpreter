@@ -122,7 +122,6 @@ class Chip8 constructor(verboseLog: Boolean): ActionListener {
         opcodeTable.executeOpcode(opcode)
         // Render the current frame of the emulation after running a CPU cycle
         display.repaint()
-        print(display.currentKey)
         // Print the debug menu to the console if the user wishes
         if(debug) debugPrint()
     }
@@ -131,6 +130,6 @@ class Chip8 constructor(verboseLog: Boolean): ActionListener {
 fun main() {
     // Create a new Chip8 object and start the emulation
     val chip8 = Chip8(true)
-    chip8.emulate("roms/maze.ch8")
+    chip8.emulate("roms/test_opcode.ch8")
 }
 

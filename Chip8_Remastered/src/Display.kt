@@ -1,22 +1,17 @@
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
-import java.awt.event.ActionEvent
-import java.awt.event.ActionListener
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
-import java.security.Key
 import javax.swing.JFrame
 import javax.swing.JPanel
-import javax.swing.Timer
 
 
 class Display constructor(upscale: Int, chip8: Chip8): JPanel(), KeyListener {
 
     private val frame = JFrame("Chip8 Interpreter")
-    private var frameNumber = 0
     private val processor = chip8
-    private val upscale = upscale
+    private val upscaleRatio = upscale
     internal var currentKey: Char? = null
 
     init {
@@ -48,7 +43,7 @@ class Display constructor(upscale: Int, chip8: Chip8): JPanel(), KeyListener {
                 // Sets the color of the current pixel to be drawn
                 if (processor.gfx[j][i] == 1) g.color = Color.WHITE else g.color = Color.BLACK
                 // Draws the pixel at its corresponding location onscreen
-                g.fillRect(i * upscale, j * upscale, upscale, upscale)
+                g.fillRect(i * upscaleRatio, j * upscaleRatio, upscaleRatio, upscaleRatio)
             }
         }
     }
@@ -56,6 +51,5 @@ class Display constructor(upscale: Int, chip8: Chip8): JPanel(), KeyListener {
     override fun paint(g: Graphics) {
         // Each timer we repaint we need to draw the current frame and keep track of the fram count
         paintComponent(g)
-        frameNumber++
     }
 }
