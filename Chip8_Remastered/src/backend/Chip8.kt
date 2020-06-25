@@ -35,13 +35,9 @@ class Chip8 constructor(screen: Display, verboseLog: Boolean): ActionListener {
     internal var pc = 0x200                                         // The program counter
     internal var sp = 0x0                                           // The stack pointer
     private val display = screen
-    private val timer = Timer(17, this)                // A timer to regulate the CPU cycle speed
+    private val timer = Timer(5, this)                 // A timer to regulate the CPU cycle speed
     private val opcodeTable = OpcodeMap(this, display)      // The opcode table that we use for opcode execution
     private val debug = verboseLog                                  // The flag for the debug menu
-
-    init {
-        loadFonts()     // Load the backend.Chip8 font set into memory
-    }
 
     private fun loadFonts() {
         // The standard backend.Chip8 font set used for rendering
@@ -65,11 +61,6 @@ class Chip8 constructor(screen: Display, verboseLog: Boolean): ActionListener {
         )
         // Loads each font into the system memory for use in the program
         for (i in fontSet.indices) memory[i] = fontSet[i]
-    }
-
-    fun emulate(filename: String) {
-        loadRom(filename)       // Load the specified ROM into memory
-        timer.start()           // Starts the timer for the display
     }
 
     private fun loadRom(filename: String) {
@@ -103,9 +94,29 @@ class Chip8 constructor(screen: Display, verboseLog: Boolean): ActionListener {
         }
     }
 
+    private fun resetState() {
+        registers = IntArray(0x10)
+        memory = IntArray(0x1000)
+        stack = IntArray(0xC)
+        gfx = Array(32) { IntArray(64) }
+        delay = 0x3c
+        sound = 0x3c
+        opcode = 0x0
+        registerI = 0x0
+        pc = 0x200
+        sp = 0x0
+    }
+
+    fun emulate(filename: String) {
+        resetState()            // Zeros the state of the Chip8 instance
+        loadFonts()             // Load the backend.Chip8 font set into memory
+        loadRom(filename)       // Load the specified ROM into memory
+        timer.start()           // Starts the timer for the display
+    }
+
     private fun debugPrint() {
         // Print the current opcode and program counter position
-        println(String.format("backend.Opcode: %x", opcode))
+        println(String.format("Opcode: %x", opcode))
         println(String.format("Program Counter: %x", pc))
         // Iterate over all of the registers and print their values in a line for help debugging
         print("Registers -> ")
@@ -126,7 +137,7 @@ class Chip8 constructor(screen: Display, verboseLog: Boolean): ActionListener {
         // Render the current frame of the emulation after running a CPU cycle
         display.repaint()
         // Decrement the sound and delay timers for each frame drawn
-        delay -= 1; sound -= 1
+        delay--; sound--
         // Print the debug menu to the console if the user wishes
         if (debug) debugPrint()
     }

@@ -11,12 +11,15 @@ import javax.swing.*
 
 class Display constructor(upscale: Int, verbose: Boolean): JPanel(), KeyListener {
 
-    private val frame = JFrame("backend.Chip8 Interpreter")
+    // Create a Frame for the Jpanel to reside in and a chip8 instance to emulate the backend
+    private val frame = JFrame("Chip8 Interpreter")
     private val processor = Chip8(this, verbose)
     private val upscaleRatio = upscale
     internal var currentKey: Char? = null
 
     init {
+        // Uses the look and feel native to the host OS
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
         // Initializes the size of the JPanel and add a key listener
         this.preferredSize = Dimension(64 * upscale,32 * upscale)
         this.isFocusable = true
@@ -37,7 +40,7 @@ class Display constructor(upscale: Int, verbose: Boolean): JPanel(), KeyListener
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            val display = Display(20, false)
+            val display = Display(20, true)
         }
     }
 

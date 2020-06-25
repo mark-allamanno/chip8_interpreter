@@ -17,9 +17,9 @@ interface Opcode {
     We also define a custom exception for undefined opcodes because even though it doesn't really handle anything it
     makes the program easier to debug as it will print out what opcode it failed to run.
 */
-internal class UndefinedOpcode(opcode: Int): Exception() {
+internal class UndefinedOpcode(opcode: String): Exception() {
     init {
-        println("Interpreter was given an undefined opcode: ${toHexString(opcode)}")
+        println("Interpreter was given an undefined opcode: $opcode}")
     }
 }
 
@@ -262,28 +262,28 @@ internal class DrawSprite: Opcode {
     // If the opcode is in the form DXYN then we need to draw a pixel at the location x, y
     override fun execute(instance: Chip8) {
         // Gets the VX and Vy registers and the height of the current sprite
-        val registerX = instance.registers[(instance.opcode and 0x0F00) ushr 8]
-        val registerY = instance.registers[(instance.opcode and 0x00F0) ushr 4]
+        val coordinateX = instance.registers[(instance.opcode and 0x0F00) ushr 8]
+        val coordinateY = instance.registers[(instance.opcode and 0x00F0) ushr 4]
         val height = instance.opcode and 0xF
-
+        // Set the draw flag before we start to draw
+        instance.registers[0xF] = 0
         // Nested for loop tp draw the 8 bit wide sprite and height specified by the instruction
-        for (col in 0 until 8) {
-            for (row in 0 until height) {
-                // Gets the current pixel data from memory
-                val pixel = instance.memory[instance.registerI + row]
-                val bit = pixel and (0b10000000 ushr col)
+        for (row in 0 until height) {
+            // Gets the current pixel data from memory
+            val pixel = instance.memory[instance.registerI + row]
+            for (col in 0 until 8) {
                 // Low key unsure as to what the fuck this does
-                if (bit != 0) {
+                if (pixel and (0b10000000 ushr col) != 0) {
                     // We need to account for the wrap around of pixels
-                    if (registerX + col >= 64)
+                    if (coordinateX + col >= 64)
                         continue
-                    if (registerY + row >= 32)
+                    if (coordinateY + row >= 32)
                         continue
                     // If the current pixel is already 1 then we know that a pixel went from 1 to 0 and a draw flag needs to be set
-                    if (instance.gfx[registerY+row][registerX+col] == 1)
+                    if (instance.gfx[coordinateY+row][coordinateX+col] == 1)
                         instance.registers[0xF] = 1
                     // Xor the register with itself to switch its current value
-                    instance.gfx[registerY + row][registerX + col] = instance.gfx[registerY + row][registerX + col] xor 1
+                    instance.gfx[coordinateY + row][coordinateX + col] = instance.gfx[coordinateY + row][coordinateX + col] xor 1
                 }
             }
         }
@@ -295,20 +295,40 @@ internal class DrawSprite: Opcode {
 internal class SkipIfMatchKey constructor(display: Display): Opcode {
 
     private val reader = display
+    private val keyMap = HashMap<Char, Int>()
+
+    init {
+        val keys = arrayOf( '1', '2', '3', '4',
+                            'q', 'w', 'e', 'r',
+                            'a', 's', 'd', 'f',
+                            'z', 'x', 'c', 'v' )
+        for(i in keys.indices) keyMap[keys[i]] = i
+    }
+
     // If the opcode is in the form EX9E then we need to load values from memory into V0-VX
     override fun execute(instance: Chip8) {
         val regIndex = (instance.opcode and 0x0F00) ushr 8
-        instance.pc += if(instance.registers[regIndex] == reader.currentKey?.toInt() ?: 0) 4 else 2
+        instance.pc += if(instance.registers[regIndex] == keyMap[reader.currentKey ?: ' ']) 4 else 2
     }
 }
 
 internal class SkipIfNotMatchKey constructor(display: Display): Opcode {
 
     private val reader = display
+    private val keyMap = HashMap<Char, Int>()
+
+    init {
+        val keys = arrayOf( '1', '2', '3', '4',
+                            'q', 'w', 'e', 'r',
+                            'a', 's', 'd', 'f',
+                            'z', 'x', 'c', 'v' )
+        for(i in keys.indices) keyMap[keys[i]] = i
+    }
+
     // If the opcode is in the form EXA1 then we need to load values from memory into V0-VX
     override fun execute(instance: Chip8) {
         val regIndex = (instance.opcode and 0x0F00) ushr 8
-        instance.pc += if(instance.registers[regIndex] != reader.currentKey?.toInt() ?: 0) 4 else 2
+        instance.pc += if(instance.registers[regIndex] != keyMap[reader.currentKey ?: ' ']) 4 else 2
     }
 }
 
@@ -327,9 +347,8 @@ internal class WaitForKeyPress constructor(display: Display): Opcode {
     // If the opcode is in the form FX0A then we need to await a keypress and store that value into VX
     override fun execute(instance: Chip8) {
         val index = (instance.opcode and 0x0F00) ushr 8
-        while (reader.currentKey == null) {
             instance.registers[index] = reader.currentKey?.toInt() ?: 0
-        }
+
     }
 }
 
@@ -364,6 +383,7 @@ internal class SpriteAddress: Opcode {
     // If the opcode is in the form FX29 then we need to set I to the location of the character in VX
     override fun execute(instance: Chip8) {
         val index = (instance.opcode and 0x0F00) ushr 8
+        // We multiply by 5 due to the font set array location ie character for 1 is at memory address 5 and 3 is at 15
         instance.registerI = instance.registers[index] * 5
         instance.pc += 2
     }
@@ -471,6 +491,6 @@ class OpcodeMap constructor(instance: Chip8, display: Display): HashMap<String, 
                 this[test]!!.execute(chip8)
             }
         // If no opcode match is found then it will throw an undefined opcode exception to prevent CPU stalling
-        if (!isValidCode) throw UndefinedOpcode(instruction)
+        if (!isValidCode) throw UndefinedOpcode(opcode)
     }
 }
