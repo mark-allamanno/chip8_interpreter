@@ -24,19 +24,19 @@ import kotlin.system.exitProcess
 */
 class Chip8 constructor(screen: Display, verboseLog: Boolean): ActionListener {
 
-    internal var registers = IntArray(0x10)                     // The 16 CPU registers
-    internal var memory = IntArray(0x1000)                      // The 4k of onboard memory
-    internal var stack = IntArray(0xC)                          // The 12 levels of stack nesting
-    internal var gfx = Array(32) { IntArray(64) }          // The memory we are using for the graphical data
+    internal var registers = IntArray(0x10)                         // The 16 CPU registers
+    internal var memory = IntArray(0x1000)                          // The 4k of onboard memory
+    internal var stack = IntArray(0xC)                              // The 12 levels of stack nesting
+    internal var gfx = Array(32) { IntArray(64) }                   // The memory we are using for the graphical data
     internal var delay = 0x3c                                       // The delay timer
     internal var sound = 0x3c                                       // The sound timer
     internal var opcode = 0x0                                       // The current opcode of the emulation
     internal var registerI = 0x0                                    // The special I register
     internal var pc = 0x200                                         // The program counter
     internal var sp = 0x0                                           // The stack pointer
-    private val display = screen
-    private val timer = Timer(5, this)                 // A timer to regulate the CPU cycle speed
-    private val opcodeTable = OpcodeMap(this, display)      // The opcode table that we use for opcode execution
+    private val display = screen                                    // The display for the Chip 8 
+    private val timer = Timer(5, this)                              // A timer to regulate the CPU cycle speed
+    private val opcodeTable = OpcodeMap(this, display)              // The opcode table that we use for opcode execution
     private val debug = verboseLog                                  // The flag for the debug menu
 
     private fun loadFonts() {
