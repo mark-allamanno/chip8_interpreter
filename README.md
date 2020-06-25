@@ -1,2 +1,2 @@
 # Chip8_Remastered
-Simple Chip 8 Emulator
+Simple Chip 8 Interpreter
