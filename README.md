@@ -17,6 +17,6 @@ A simple Chip8 interpreter. Simply compile and run the file "Display.kt" in the 
 'Z' = 13 | 
 'X' = 14 | 
 'C' = 15 | 
-'V' = 16 | 
+'V' = 16
 
 Note: this is not a native Kotlin implementation, it is meant to be run on the JVM with Java dependencies such as swing.
